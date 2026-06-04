@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuration Système — Supervision RTG</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep:       #050811;
+    --bg-card:       #0f192b;
+    --bg-card2:      #14223a;
+    --border:        #1b3254;
+    --border-hi:     #284e82;
+    --blue-tech:     #00b0ff;
+    --green-ok:      #00e676;
+    --red-alarm:     #ff1744;
+    --orange:        #ff9100;
+    --text-primary:  #e3f2fd;
+    --text-sec:      #789dc5;
+    --text-dim:      #436288;
+    --mono:          'Share Tech Mono', monospace;
+    --head:          'Orbitron', sans-serif;
+    --body:          'Rajdhani', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-deep); color: var(--text-primary); font-family: var(--body); font-size: 15px; min-height: 100vh;
+    background-image: radial-gradient(ellipse 70% 40% at 50% 0%, #091d36 0%, transparent 70%), repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(27,50,84,0.15) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(27,50,84,0.15) 40px);
+  }
+
+  header {
+    background: linear-gradient(90deg, #03060c 0%, #0a1729 50%, #03060c 100%); border-bottom: 2px solid var(--border-hi); padding: 0 24px; height: 70px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .header-title h1 { font-family: var(--head); font-size: 18px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .header-title span { color: var(--blue-tech); }
+  
+  .btn-back { background: linear-gradient(135deg, #00b0ff, #007bb3); border: 1px solid var(--blue-tech); color: #fff; padding: 8px 16px; border-radius: 4px; font-family: var(--head); font-size: 11px; cursor: pointer; text-decoration: none; text-transform: uppercase; }
+
+  main { max-width: 1000px; margin: 40px auto; padding: 0 20px; display: flex; flex-direction: column; gap: 24px; }
+  
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; position: relative; }
+  .card-title { font-family: var(--head); font-size: 12px; letter-spacing: .15em; color: var(--text-sec); text-transform: uppercase; margin-bottom: 20px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  
+  .field-group { display: flex; flex-direction: column; gap: 6px; background: var(--bg-card2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 6px; }
+  .field-group label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+  .field-group input { background: transparent; border: none; outline: none; color: #fff; font-family: var(--body); font-size: 15px; width: 100%; border-bottom: 1px dashed transparent; }
+  .field-group input:focus { border-bottom-color: var(--blue-tech); }
+  .field-group input[type="date"] { font-family: var(--mono); color: var(--blue-tech); }
+
+  .btn-save-main { background: linear-gradient(135deg, #00b0ff, #005b9f); border: 1px solid var(--blue-tech); color: #fff; padding: 12px; border-radius: 6px; font-family: var(--head); font-size: 11px; text-transform: uppercase; cursor: pointer; width: 100%; margin-top: 10px; }
+  
+  /* WHATSAPP RECIPIENTS FORM */
+  .wa-form-row { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr auto; gap: 10px; margin-bottom: 20px; }
+  .wa-input { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; color: #fff; font-family: var(--body); font-size: 14px; }
+  .wa-input:focus { outline: none; border-color: var(--blue-tech); }
+  .wa-input.mono { font-family: var(--mono); }
+  .btn-add-wa { background: rgba(0,230,118,0.1); border: 1px solid var(--green-ok); color: var(--green-ok); padding: 0 20px; border-radius: 6px; font-family: var(--head); font-size: 11px; cursor: pointer; text-transform: uppercase; }
+
+  .wa-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; }
+  .wa-contact-item { background: var(--bg-card2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .contact-details span { margin-right: 20px; }
+  .btn-del { background: transparent; border: 1px solid var(--red-alarm); color: var(--red-alarm); padding: 4px 10px; border-radius: 4px; font-family: var(--mono); font-size: 11px; cursor: pointer; }
+  .btn-del:hover { background: var(--red-alarm); color: #fff; }
+  
+  .btn-danger-clear { background: transparent; border: none; color: var(--text-dim); text-decoration: underline; font-family: var(--mono); font-size: 12px; cursor: pointer; margin-top: 10px; float: right;}
+  .btn-danger-clear:hover { color: var(--red-alarm); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Panneau d'Administration — <span>Configuration RTG & IoT</span></h1>
+  </div>
+  <a href="index.html" class="btn-back">◀ Retour au Dashboard</a>
+</header>
+
+<main>
+  
+  <div class="card">
+    <div class="card-title">1. Paramètres de la Machine & Calendrier d'Intervention</div>
+    
+    <div class="grid-2">
+      <div class="field-group"><label>Identifiant du RTG</label><input type="text" id="cfg-id" value="RTG-07"></div>
+      <div class="field-group"><label>Description de l'Organe Spécifique</label><input type="text" id="cfg-desc" value="Frein de Translation — Moteur Principal"></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field-group"><label>Jour Prévu d'Intervention</label><input type="date" id="cfg-date"></div>
+      <div class="field-group"><label>Technicien en Charge</label><input type="text" id="cfg-agent" value="M. BENALI"></div>
+    </div>
+
+    <div class="field-group" style="margin-bottom: 16px;"><label>Rapport Technique de l'Atelier</label><input type="text" id="cfg-report" value="Écart d'entrefer ajusté, aimant permanent repositionné"></div>
+
+    <button class="btn-save-main" onclick="saveMainConfiguration()">Mettre à jour l'Infrastructure</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">2. Registre de Routage Multi-Destinataires WhatsApp (CallMeBot)</div>
+    
+    <div class="wa-form-row">
+      <input type="text" id="new-name" class="wa-input" placeholder="Nom de l'Ingénieur/Technicien">
+      <input type="text" id="new-phone" class="wa-input mono" placeholder="N° de Téléphone (ex: +22177...)">
+      <input type="text" id="new-key" class="wa-input mono" placeholder="Clé API CallMeBot">
+      <button class="btn-add-wa" onclick="addNewContact()">Ajouter</button>
+    </div>
+
+    <div class="wa-list" id="contacts-container"></div>
+    
+    <button class="btn-danger-clear" onclick="clearSystemHistory()">Purger l'historique de l'index</button>
+  </div>
+
+</main>
+
+<script>
+let contacts = JSON.parse(localStorage.getItem('rtg_wa_contacts')) || [];
+
+function loadFormValues() {
+  document.getElementById('cfg-id').value = localStorage.getItem('cfg_rtg_id') || "RTG-07";
+  document.getElementById('cfg-desc').value = localStorage.getItem('cfg_rtg_desc') || "Frein de Translation — Moteur Principal";
+  document.getElementById('cfg-date').value = localStorage.getItem('cfg_maint_date') || new Date().toISOString().split('T')[0];
+  document.getElementById('cfg-agent').value = localStorage.getItem('cfg_maint_agent') || "M. BENALI";
+  document.getElementById('cfg-report').value = localStorage.getItem('cfg_maint_report') || "Écart d'entrefer ajusté, aimant permanent repositionné";
+}
+
+function saveMainConfiguration() {
+  localStorage.setItem('cfg_rtg_id', document.getElementById('cfg-id').value.trim());
+  localStorage.setItem('cfg_rtg_desc', document.getElementById('cfg-desc').value.trim());
+  localStorage.setItem('cfg_maint_date', document.getElementById('cfg-date').value);
+  localStorage.setItem('cfg_maint_agent', document.getElementById('cfg-agent').value.trim());
+  localStorage.setItem('cfg_maint_report', document.getElementById('cfg-report').value.trim());
+
+  // Ajouter l'événement à l'historique
+  let logs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
+  const ts = new Date();
+  const readableTime = ts.toLocaleDateString('fr-FR') + ' ' + ts.toTimeString().split(' ')[0];
+  logs.unshift({
+    text: `⚙ CONFIGURATION : Infrastructure modifiée par l'administrateur. RTG ID : ${document.getElementById('cfg-id').value}. Prochaine intervention : ${document.getElementById('cfg-date').value}`,
+    type: 'maint',
+    timestamp: readableTime
+  });
+  localStorage.setItem('rtg_real_logs', JSON.stringify(logs));
+
+  alert("Paramètres de l'infrastructure sauvegardés !");
+}
+
+function drawContacts() {
+  const container = document.getElementById('contacts-container');
+  if(contacts.length === 0) {
+    container.innerHTML = `<div style="text-align:center; color: var(--text-dim); font-size:14px; padding: 15px 0;">Aucun récepteur d'alerte configuré pour le moment.</div>`;
+    return;
+  }
+
+  container.innerHTML = contacts.map((c, idx) => `
+    <div class="wa-contact-item">
+      <div class="contact-details">
+        <strong style="color:var(--blue-tech)">${c.name.toUpperCase()}</strong>
+        <span class="mono" style="color:var(--text-sec); margin-left:15px;">${c.phone}</span>
+        <small class="mono" style="color:var(--text-dim)">Clé: ${c.key}</small>
+      </div>
+      <button class="btn-del" onclick="removeContact(${idx})">Supprimer</button>
+    </div>
+  `).join('');
+}
+
+function addNewContact() {
+  const name = document.getElementById('new-name').value.trim();
+  const phone = document.getElementById('new-phone').value.trim();
+  const key = document.getElementById('new-key').value.trim();
+
+  if(!name || !phone || !key) {
+    alert("Veuillez saisir toutes les informations du nouveau receveur.");
+    return;
+  }
+
+  contacts.push({ name, phone, key });
+  localStorage.setItem('rtg_wa_contacts', JSON.stringify(contacts));
+  
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-phone').value = '';
+  document.getElementById('new-key').value = '';
+  
+  drawContacts();
+}
+
+function removeContact(index) {
+  contacts.splice(index, 1);
+  localStorage.setItem('rtg_wa_contacts', JSON.stringify(contacts));
+  drawContacts();
+}
+
+function clearSystemHistory() {
+  if(confirm("Voulez-vous réinitialiser le journal d'événements de l'index ?")) {
+    localStorage.removeItem('rtg_real_logs');
+    alert("Journal vidé.");
+  }
+}
+
+loadFormValues();
+drawContacts();
+</script>
+</body>
+</html>

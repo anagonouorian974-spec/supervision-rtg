@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supervision Industrielle — Terminal Portuaire</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<style>
+  :root {
+    --bg-deep:       #050811;
+    --bg-panel:      #0a0f1d;
+    --bg-card:       #0f192b;
+    --bg-card2:      #14223a;
+    --border:        #1b3254;
+    --border-hi:     #284e82;
+    --blue-tech:     #00b0ff;
+    --green-ok:      #00e676;
+    --red-alarm:     #ff1744;
+    --orange:        #ff9100;
+    --text-primary:  #e3f2fd;
+    --text-sec:      #789dc5;
+    --text-dim:      #436288;
+    --mono:          'Share Tech Mono', monospace;
+    --head:          'Orbitron', sans-serif;
+    --body:          'Rajdhani', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-deep); color: var(--text-primary); font-family: var(--body); font-size: 15px; min-height: 100vh; overflow-x: hidden;
+    background-image: radial-gradient(ellipse 70% 40% at 50% 0%, #091d36 0%, transparent 70%), repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(27,50,84,0.15) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(27,50,84,0.15) 40px);
+  }
+
+  header {
+    background: linear-gradient(90deg, #03060c 0%, #0a1729 50%, #03060c 100%); border-bottom: 2px solid var(--border-hi); padding: 0 24px; height: 70px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 10px 40px rgba(0,0,0,0.5); position: sticky; top: 0; z-index: 100;
+  }
+  .header-title h1 { font-family: var(--head); font-size: 18px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  .header-title span { color: var(--blue-tech); }
+  .header-right { display: flex; align-items: center; gap: 24px; }
+  .clock { font-family: var(--mono); font-size: 14px; color: var(--text-sec); }
+  
+  .btn-nav { background: linear-gradient(135deg, #14223a, #0f192b); border: 1px solid var(--border-hi); color: var(--blue-tech); padding: 8px 16px; border-radius: 4px; font-family: var(--head); font-size: 11px; cursor: pointer; text-decoration: none; text-transform: uppercase; transition: 0.2s; }
+  .btn-nav:hover { border-color: var(--blue-tech); box-shadow: 0 0 10px rgba(0,176,255,0.3); }
+
+  main { max-width: 1600px; margin: 24px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+  .left-column { display: flex; flex-direction: column; gap: 20px; }
+  
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--blue-tech), transparent); }
+  .card-title { font-family: var(--head); font-size: 11px; letter-spacing: .15em; color: var(--text-sec); text-transform: uppercase; margin-bottom: 16px; }
+
+  .dashboard-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  
+  .rtg-title-display { font-family: var(--head); font-size: 26px; font-weight: 900; color: var(--blue-tech); }
+  .rtg-subtitle-display { font-size: 14px; color: var(--text-sec); margin-top: 2px; margin-bottom: 20px; }
+
+  .metrics-box { background: var(--bg-card2); border: 1px solid var(--border); padding: 15px; border-radius: 6px; display: flex; flex-direction: column; gap: 10px; }
+  .metric-row { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+  .metric-row:last-child { border: none; padding: 0; }
+  .m-lbl { font-size: 12px; color: var(--text-dim); text-transform: uppercase; }
+  .m-val { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+
+  .status-panel { display: flex; align-items: center; justify-content: center; height: 75px; border-radius: 6px; border: 2px solid var(--green-ok); background: rgba(0,230,118,.05); margin-top: 15px; }
+  .status-panel.alarm { border-color: var(--red-alarm); background: rgba(255,23,68,.08); animation: pulse-alarm 2s infinite; }
+  .status-text-big { font-family: var(--head); font-size: 24px; font-weight: 900; color: var(--green-ok); letter-spacing: 0.05em; }
+  .status-panel.alarm .status-text-big { color: var(--red-alarm); }
+
+  @keyframes pulse-alarm { 0%, 100% { box-shadow: 0 0 10px rgba(255,23,68,0.2); } 50% { box-shadow: 0 0 25px rgba(255,23,68,0.5); } }
+
+  .schema-box { display: flex; align-items: center; justify-content: center; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 6px; padding: 15px; }
+  .schema-box svg { width: 100%; max-height: 220px; }
+
+  .maint-display-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+  .info-block { background: var(--bg-card2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 6px; }
+  .info-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
+  .info-val { font-size: 15px; margin-top: 4px; color: var(--text-primary); font-family: var(--mono); }
+
+  .right-column { display: flex; flex-direction: column; }
+  .search-box { width: 100%; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; color: #fff; font-family: var(--mono); font-size: 12px; margin-bottom: 12px; }
+  .event-stream { display: flex; flex-direction: column; gap: 8px; flex: 1; max-height: 520px; overflow-y: auto; }
+  .event-card { background: var(--bg-card2); border: 1px solid var(--border); border-left: 4px solid var(--blue-tech); padding: 10px 12px; border-radius: 4px; font-size: 13px; }
+  .event-card.ev-ok { border-left-color: var(--green-ok); }
+  .event-card.ev-warn { border-left-color: var(--red-alarm); }
+  .event-card.ev-maint { border-left-color: var(--orange); }
+  .ev-time { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Supervision de Freinage RTG — <span>Données Réelles</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="clock" id="live-clock">--:--:--</div>
+    <a href="config.html" class="btn-nav">⚙ PANNEAU DE CONFIGURATION</a>
+  </div>
+</header>
+
+<main>
+  <div class="left-column">
+    
+    <div class="card">
+      <div class="card-title">Moniteur de Diagnostic Actif</div>
+      <div class="dashboard-grid">
+        
+        <div>
+          <div class="rtg-title-display" id="disp-rtg-id">RTG--</div>
+          <div class="rtg-subtitle-display" id="disp-rtg-desc">--</div>
+          
+          <div class="metrics-box">
+            <div class="metric-row">
+              <span class="m-lbl">État Brut Capteur (Hall PIN) :</span>
+              <span class="m-val" id="lbl-raw-signal">--</span>
+            </div>
+            <div class="metric-row">
+              <span class="m-lbl">Dernier Échange Firebase :</span>
+              <span class="m-val" id="lbl-last-time">--</span>
+            </div>
+            <div class="metric-row">
+              <span class="m-lbl">Comportement de l'Entrefer :</span>
+              <span class="m-val" id="lbl-field-desc" style="color:var(--blue-tech)">Analyse du flux...</span>
+            </div>
+          </div>
+
+          <div class="status-panel" id="status-panel">
+            <div class="status-text-big" id="lbl-status-text">CONNEXION EN COURS</div>
+          </div>
+        </div>
+
+        <div class="schema-box">
+          <svg viewBox="0 0 240 240" fill="none">
+            <rect x="5" y="5" width="230" height="230" rx="6" fill="#070c16" stroke="#1b3254" stroke-width="1.5"/>
+            <circle cx="120" cy="110" r="65" fill="#121e33" stroke="#284e82" stroke-width="2"/>
+            <circle cx="120" cy="110" r="45" fill="#070c16" stroke="#1b3254"/>
+            <path id="jaw-left" d="M45 85 C45 85 38 110 45 135" stroke="#00e676" stroke-width="8" stroke-linecap="round"/>
+            <path id="jaw-right" d="M195 85 C195 85 202 110 195 135" stroke="#00e676" stroke-width="8" stroke-linecap="round"/>
+            <rect x="110" y="32" width="20" height="12" rx="2" fill="#00b0ff" id="svg-sensor"/>
+            <text x="120" y="198" text-anchor="middle" fill="#00e676" font-family="Orbitron" font-size="11" font-weight="700" id="svg-text">ANALYSE INITIALE</text>
+          </svg>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Informations de Maintenance Active & Calendrier</div>
+      <div class="maint-display-grid">
+        <div class="info-block"><div class="info-lbl">Date Planifiée d'Intervention</div><div class="info-val" id="disp-maint-date">--/--/----</div></div>
+        <div class="info-block"><div class="info-lbl">Technicien Délégué</div><div class="info-val" id="disp-maint-agent">--</div></div>
+        <div class="info-block" style="grid-column: 1 / 3;"><div class="info-lbl">Rapport / Notes de l'Atelier</div><div class="info-val" id="disp-maint-report" style="font-family:var(--body)">--</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="right-column">
+    <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+      <div class="card-title">Registre des Événements Réels</div>
+      <input type="text" id="history-search" class="search-box" placeholder="Rechercher par date ou mot..." oninput="drawLogs()">
+      <div class="event-stream" id="event-stream-container"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// INITIALISATION SECURISEE DE FIREBASE REALTIME DATABASE
+const firebaseConfig = {
+  apiKey: "eUJSjyx1W95zjmkqAL8PGir4rGWQUMuxJDucYIP4",
+  authDomain: "supervision-rtg-default-rtdb.firebaseapp.com",
+  databaseURL: "https://supervision-rtg-default-rtdb.firebaseio.com/",
+  projectId: "supervision-rtg-default-rtdb"
+};
+
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+let activeState = "";
+let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
+
+// Horloge temps réel
+setInterval(() => {
+  document.getElementById('live-clock').textContent = new Date().toTimeString().split(' ')[0];
+}, 1000);
+
+// Charger les informations statiques configurées depuis l'autre page
+function applyStaticConfig() {
+  document.getElementById('disp-rtg-id').textContent = localStorage.getItem('cfg_rtg_id') || "RTG-07";
+  document.getElementById('disp-rtg-desc').textContent = localStorage.getItem('cfg_rtg_desc') || "Frein de Translation — Moteur Principal";
+  
+  const rawDate = localStorage.getItem('cfg_maint_date');
+  if(rawDate) {
+    const parts = rawDate.split('-');
+    document.getElementById('disp-maint-date').textContent = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : rawDate;
+  } else {
+    document.getElementById('disp-maint-date').textContent = "Non planifiée";
+  }
+  document.getElementById('disp-maint-agent').textContent = localStorage.getItem('cfg_maint_agent') || "Non assigné";
+  document.getElementById('disp-maint-report').textContent = localStorage.getItem('cfg_maint_report') || "Aucun rapport enregistré.";
+}
+
+// Lecture continue de l'ESP32 via Firebase avec traitement immédiat
+database.ref('/rtg_system').on('value', (snapshot) => {
+  const data = snapshot.val();
+  if (!data) {
+    console.warn("[Firebase] Noeud /rtg_system vide ou inaccessible.");
+    return;
+  }
+
+  const currentSignal = data.raw_signal || "HIGH";
+  const systemState = data.filtered_state || "INIT";
+
+  document.getElementById('lbl-raw-signal').textContent = currentSignal;
+  const now = new Date();
+  document.getElementById('lbl-last-time').textContent = now.toLocaleDateString() + ' ' + now.toTimeString().split(' ')[0];
+
+  // Gestion de la première connexion et des changements d'état
+  if (activeState === "") {
+    activeState = systemState;
+    handleStateChange(systemState === "INIT" ? "OK" : systemState);
+  } else if (systemState !== activeState && systemState !== "INIT") {
+    activeState = systemState;
+    handleStateChange(systemState);
+  }
+}, (error) => {
+  console.error("[Firebase Network Error] Link failed: ", error);
+  document.getElementById('lbl-status-text').textContent = "ECHEC DE LIAISON CLOUD";
+});
+
+function handleStateChange(state) {
+  const isHealthy = (state === "OK");
+  const panel = document.getElementById('status-panel');
+  const txtLabel = document.getElementById('lbl-status-text');
+  const fieldDesc = document.getElementById('lbl-field-desc');
+  const rtgId = document.getElementById('disp-rtg-id').textContent;
+
+  const jawL = document.getElementById('jaw-left');
+  const jawR = document.getElementById('jaw-right');
+  const svgS = document.getElementById('svg-sensor');
+  const svgT = document.getElementById('svg-text');
+
+  if (isHealthy) {
+    panel.className = "status-panel";
+    txtLabel.textContent = "GARNITURE - NORMAL";
+    fieldDesc.textContent = "Champ magnétique détecté (OK)";
+    jawL.setAttribute('stroke', 'var(--green-ok)');
+    jawR.setAttribute('stroke', 'var(--green-ok)');
+    svgS.setAttribute('fill', 'var(--blue-tech)');
+    svgT.textContent = "STATUT : NOMINAL";
+    svgT.setAttribute('fill', 'var(--green-ok)');
+
+    pushLog(`Supervision : ${rtgId} est repassé à un état normal.`, 'ok');
+  } else {
+    panel.className = "status-panel alarm";
+    txtLabel.textContent = "ALERTE USURE CRITIQUE";
+    fieldDesc.textContent = "Absence ou effondrement de champ (AH3503)";
+    jawL.setAttribute('stroke', 'var(--red-alarm)');
+    jawR.setAttribute('stroke', 'var(--red-alarm)');
+    svgS.setAttribute('fill', 'var(--red-alarm)');
+    svgT.textContent = "ALERTE : USURE";
+    svgT.setAttribute('fill', 'var(--red-alarm)');
+
+    pushLog(`⚠ ALARME CRITIQUE : Seuil d'usure de garniture atteint sur ${rtgId}.`, 'warn');
+    triggerWhatsAppNotifications();
+  }
+}
+
+// ALGORITHME DE ROUTAGE DIRECT ASYNCHRONE ET PARALLÈLE (SECURISATION DES DEPLOIEMENTS HTTPS)
+function triggerWhatsAppNotifications() {
+  let storedContacts = localStorage.getItem('rtg_wa_contacts');
+  let contacts = [];
+
+  if (storedContacts) {
+    contacts = JSON.parse(storedContacts);
+  }
+
+  // Backup Secours : Ton numéro par défaut si la liste locale du navigateur est vide
+  if (contacts.length === 0) {
+    contacts.push({
+      name: "Ingénieur Principal (Moi)",
+      phone: "22940928851",
+      key: "2875382"
+    });
+  }
+
+  const rtgId = document.getElementById('disp-rtg-id').textContent;
+  const rtgDesc = document.getElementById('disp-rtg-desc').textContent;
+
+  // Format épuré conforme HTTPS pour un transit réseau instantané
+  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention immediate requise.`;
+
+  console.log(`[Routage] Initialisation de l'envoi simultané direct pour ${contacts.length} récepteur(s)...`);
+
+  // Lancement parallélisé de toutes les requêtes d'alerte en ligne droite (Zéro intermédiaire)
+  const envoiPromesses = contacts.map(contact => {
+    if (!contact.key || !contact.phone) return Promise.resolve();
+
+    const cleanPhone = contact.phone.replace('+', '').replace(/\s/g, '');
+    
+    // API CallMeBot sécurisée en ligne droite
+    const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodeURIComponent(message)}&apikey=${contact.key}`;
+
+    // Le mode 'no-cors' force le navigateur à envoyer le paquet réseau en arrière-plan sans blocage de politique de sécurité
+    return fetch(targetUrl, { mode: 'no-cors' })
+      .then(() => {
+        pushLog(`⚡ [Routage Flash] Alerte transmise à ${contact.name} (${cleanPhone})`, 'ok');
+      })
+      .catch(err => {
+        pushLog(`⚠ Erreur locale pour ${contact.name} : ${err.message}`, 'warn');
+      });
+  });
+
+  Promise.all(envoiPromesses).then(() => {
+    console.log("[Routage] Toutes les requêtes d'alerte réseau ont été distribuées.");
+  });
+}
+
+function pushLog(text, type) {
+  const ts = new Date();
+  const readableTime = ts.toLocaleDateString('fr-FR') + ' ' + ts.toTimeString().split(' ')[0];
+  eventLogs.unshift({ text, type, timestamp: readableTime });
+  if (eventLogs.length > 50) eventLogs.pop();
+  localStorage.setItem('rtg_real_logs', JSON.stringify(eventLogs));
+  drawLogs();
+}
+
+function drawLogs() {
+  const container = document.getElementById('event-stream-container');
+  const search = document.getElementById('history-search').value.trim().toLowerCase();
+  const filtered = eventLogs.filter(l => l.text.toLowerCase().includes(search) || l.timestamp.toLowerCase().includes(search));
+
+  container.innerHTML = filtered.map(l => `
+    <div class="event-card ev-${l.type}">
+      <div>${l.text}</div>
+      <div class="ev-time">${l.timestamp}</div>
+    </div>
+  `).join('');
+}
+
+applyStaticConfig();
+drawLogs();
+</script>
+</body>
+</html>
