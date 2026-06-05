@@ -68,39 +68,6 @@
   
   .btn-danger-clear { background: transparent; border: none; color: var(--text-dim); text-decoration: underline; font-family: var(--mono); font-size: 12px; cursor: pointer; margin-top: 10px; float: right;}
   .btn-danger-clear:hover { color: var(--red-alarm); }
-  /* CODE CORRECTIF POUR RENDRE LA CONFIGURATION RESPONSIVE */
-  @media (max-width: 992px) {
-    main {
-      grid-template-columns: 1fr; /* Aligne le formulaire et la liste des contacts l'un en dessous de l'autre */
-      padding: 0 10px;
-      margin: 12px auto;
-    }
-    header {
-      height: auto;
-      padding: 15px;
-      flex-direction: column;
-      gap: 10px;
-      text-align: center;
-    }
-    .header-right {
-      width: 100%;
-      justify-content: center;
-    }
-    .config-grid {
-      grid-template-columns: 1fr; /* Aligne les champs de saisie verticalement sur smartphone */
-    }
-    .form-group button {
-      width: 100%; /* Rend les boutons d'action plus faciles à cliquer sur mobile */
-    }
-    .contact-item {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
-    }
-    .contact-item button {
-      align-self: flex-end;
-    }
-  }
 </style>
 </head>
 <body>
@@ -150,93 +117,91 @@
 </main>
 
 <script>
-// INITIALISATION DE LA CONFIGURATION CLOUD FIREBASE COMPLÈTE
-const firebaseConfig = {
-  apiKey: "eUJSjyx1W95zjmkqAL8PGir4rGWQUMuxJDucYIP4",
-  authDomain: "supervision-rtg-default-rtdb.firebaseapp.com",
-  databaseURL: "https://supervision-rtg-default-rtdb.firebaseio.com/",
-  projectId: "supervision-rtg-default-rtdb",
-  storageBucket: "supervision-rtg-default-rtdb.appspot.com"
-};
+let contacts = JSON.parse(localStorage.getItem('rtg_wa_contacts')) || [];
 
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-
-// Chargement initial depuis Firebase
-database.ref('/rtg_config').once('value').then((snapshot) => {
-  const cfg = snapshot.val() || {};
-  document.getElementById('cfg-rtg-id').value = cfg.rtg_id || "RTG-07";
-  document.getElementById('cfg-rtg-desc').value = cfg.rtg_desc || "Frein de Translation — Moteur Principal";
-  document.getElementById('cfg-maint-date').value = cfg.maint_date || "";
-  document.getElementById('cfg-maint-agent').value = cfg.maint_agent || "Non assigné";
-  document.getElementById('cfg-maint-report').value = cfg.maint_report || "";
-});
-
-// Écoute continue de la liste des contacts sur Firebase
-database.ref('/rtg_contacts').on('value', (snapshot) => {
-  const container = document.getElementById('contacts-list-container');
-  container.innerHTML = "";
-  const data = snapshot.val();
-  
-  if (data) {
-    Object.keys(data).forEach(id => {
-      const contact = data[id];
-      container.innerHTML += `
-        <div class="contact-item">
-          <div>
-            <strong>${contact.name}</strong><br>
-            <span style="font-family:var(--mono); font-size:12px; color:var(--text-sec)">${contact.phone} (Clé: ${contact.key})</span>
-          </div>
-          <button onclick="deleteContact('${id}')" style="background:rgba(255,23,68,0.2); border-color:var(--red-alarm); color:var(--red-alarm); padding:4px 8px; font-size:11px;">SUPPRIMER</button>
-        </div>
-      `;
-    });
-  } else {
-    container.innerHTML = `<div style="color:var(--text-dim); font-size:13px; text-align:center;">Aucun contact enregistré sur le Cloud.</div>`;
-  }
-});
-
-// Enregistrer la configuration générale sur Firebase
-function saveGeneralConfig() {
-  const configData = {
-    rtg_id: document.getElementById('cfg-rtg-id').value,
-    rtg_desc: document.getElementById('cfg-rtg-desc').value,
-    maint_date: document.getElementById('cfg-maint-date').value,
-    maint_agent: document.getElementById('cfg-maint-agent').value,
-    maint_report: document.getElementById('cfg-maint-report').value
-  };
-
-  database.ref('/rtg_config').set(configData)
-    .then(() => alert("Configuration générale synchronisée dans le Cloud !"))
-    .catch(err => alert("Erreur de synchronisation : " + err.message));
+function loadFormValues() {
+  document.getElementById('cfg-id').value = localStorage.getItem('cfg_rtg_id') || "RTG-07";
+  document.getElementById('cfg-desc').value = localStorage.getItem('cfg_rtg_desc') || "Frein de Translation — Moteur Principal";
+  document.getElementById('cfg-date').value = localStorage.getItem('cfg_maint_date') || new Date().toISOString().split('T')[0];
+  document.getElementById('cfg-agent').value = localStorage.getItem('cfg_maint_agent') || "M. BENALI";
+  document.getElementById('cfg-report').value = localStorage.getItem('cfg_maint_report') || "Écart d'entrefer ajusté, aimant permanent repositionné";
 }
 
-// Ajouter un contact sur Firebase
-function addContact() {
-  const name = document.getElementById('wa-name').value.trim();
-  const phone = document.getElementById('wa-phone').value.trim();
-  const key = document.getElementById('wa-key').value.trim();
+function saveMainConfiguration() {
+  localStorage.setItem('cfg_rtg_id', document.getElementById('cfg-id').value.trim());
+  localStorage.setItem('cfg_rtg_desc', document.getElementById('cfg-desc').value.trim());
+  localStorage.setItem('cfg_maint_date', document.getElementById('cfg-date').value);
+  localStorage.setItem('cfg_maint_agent', document.getElementById('cfg-agent').value.trim());
+  localStorage.setItem('cfg_maint_report', document.getElementById('cfg-report').value.trim());
 
-  if(!name || !phone || !key) {
-    alert("Veuillez remplir tous les champs du contact.");
+  // Ajouter l'événement à l'historique
+  let logs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
+  const ts = new Date();
+  const readableTime = ts.toLocaleDateString('fr-FR') + ' ' + ts.toTimeString().split(' ')[0];
+  logs.unshift({
+    text: `⚙ CONFIGURATION : Infrastructure modifiée par l'administrateur. RTG ID : ${document.getElementById('cfg-id').value}. Prochaine intervention : ${document.getElementById('cfg-date').value}`,
+    type: 'maint',
+    timestamp: readableTime
+  });
+  localStorage.setItem('rtg_real_logs', JSON.stringify(logs));
+
+  alert("Paramètres de l'infrastructure sauvegardés !");
+}
+
+function drawContacts() {
+  const container = document.getElementById('contacts-container');
+  if(contacts.length === 0) {
+    container.innerHTML = `<div style="text-align:center; color: var(--text-dim); font-size:14px; padding: 15px 0;">Aucun récepteur d'alerte configuré pour le moment.</div>`;
     return;
   }
 
-  const newContactRef = database.ref('/rtg_contacts').push();
-  newContactRef.set({ name, phone, key })
-    .then(() => {
-      document.getElementById('wa-name').value = "";
-      document.getElementById('wa-phone').value = "";
-      document.getElementById('wa-key').value = "";
-    });
+  container.innerHTML = contacts.map((c, idx) => `
+    <div class="wa-contact-item">
+      <div class="contact-details">
+        <strong style="color:var(--blue-tech)">${c.name.toUpperCase()}</strong>
+        <span class="mono" style="color:var(--text-sec); margin-left:15px;">${c.phone}</span>
+        <small class="mono" style="color:var(--text-dim)">Clé: ${c.key}</small>
+      </div>
+      <button class="btn-del" onclick="removeContact(${idx})">Supprimer</button>
+    </div>
+  `).join('');
 }
 
-// Supprimer un contact sur Firebase
-function deleteContact(id) {
-  if(confirm("Supprimer ce contact du réseau Cloud ?")) {
-    database.ref(`/rtg_contacts/${id}`).remove();
+function addNewContact() {
+  const name = document.getElementById('new-name').value.trim();
+  const phone = document.getElementById('new-phone').value.trim();
+  const key = document.getElementById('new-key').value.trim();
+
+  if(!name || !phone || !key) {
+    alert("Veuillez saisir toutes les informations du nouveau receveur.");
+    return;
+  }
+
+  contacts.push({ name, phone, key });
+  localStorage.setItem('rtg_wa_contacts', JSON.stringify(contacts));
+  
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-phone').value = '';
+  document.getElementById('new-key').value = '';
+  
+  drawContacts();
+}
+
+function removeContact(index) {
+  contacts.splice(index, 1);
+  localStorage.setItem('rtg_wa_contacts', JSON.stringify(contacts));
+  drawContacts();
+}
+
+function clearSystemHistory() {
+  if(confirm("Voulez-vous réinitialiser le journal d'événements de l'index ?")) {
+    localStorage.removeItem('rtg_real_logs');
+    alert("Journal vidé.");
   }
 }
+
+loadFormValues();
+drawContacts();
 </script>
 </body>
 </html>
