@@ -193,12 +193,13 @@
 </main>
 
 <script>
-// INITIALISATION SECURISEE DE FIREBASE REALTIME DATABASE
+// INITIALISATION DE LA CONFIGURATION CLOUD FIREBASE COMPLÈTE
 const firebaseConfig = {
   apiKey: "eUJSjyx1W95zjmkqAL8PGir4rGWQUMuxJDucYIP4",
   authDomain: "supervision-rtg-default-rtdb.firebaseapp.com",
   databaseURL: "https://supervision-rtg-default-rtdb.firebaseio.com/",
-  projectId: "supervision-rtg-default-rtdb"
+  projectId: "supervision-rtg-default-rtdb",
+  storageBucket: "supervision-rtg-default-rtdb.appspot.com"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -206,9 +207,7 @@ const database = firebase.database();
 
 let activeState = "";
 let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
-  let activeState = "";
-let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
-let hasNotificationBeenSent = false; // <-- SÉCURITÉ : Bloque le spam de notifications
+let hasNotificationBeenSent = false; // SÉCURITÉ : Bloque le spam de notifications
 
 // Horloge temps réel
 setInterval(() => {
@@ -231,11 +230,11 @@ function applyStaticConfig() {
   document.getElementById('disp-maint-report').textContent = localStorage.getItem('cfg_maint_report') || "Aucun rapport enregistré.";
 }
 
-// Lecture continue de l'ESP32 via Firebase avec traitement immédiat
+// Lecture continue de l'ESP32 via Firebase avec gestion d'erreurs réseau
 database.ref('/rtg_system').on('value', (snapshot) => {
   const data = snapshot.val();
   if (!data) {
-    console.warn("[Firebase] Noeud /rtg_system vide ou inaccessible.");
+    console.warn("[Firebase] Nœud /rtg_system vide ou inaccessible.");
     return;
   }
 
@@ -246,7 +245,7 @@ database.ref('/rtg_system').on('value', (snapshot) => {
   const now = new Date();
   document.getElementById('lbl-last-time').textContent = now.toLocaleDateString() + ' ' + now.toTimeString().split(' ')[0];
 
-  // Gestion de la première connexion et des changements d'état
+  // Forcer l'affichage initial dès la première réception de données
   if (activeState === "") {
     activeState = systemState;
     handleStateChange(systemState === "INIT" ? "OK" : systemState);
@@ -256,7 +255,7 @@ database.ref('/rtg_system').on('value', (snapshot) => {
   }
 }, (error) => {
   console.error("[Firebase Network Error] Link failed: ", error);
-  document.getElementById('lbl-status-text').textContent = "ECHEC DE LIAISON CLOUD";
+  document.getElementById('lbl-status-text').textContent = "ÉCHEC DE LIAISON CLOUD";
 });
 
 function handleStateChange(state) {
@@ -298,18 +297,18 @@ function handleStateChange(state) {
 
     pushLog(`⚠ ALARME CRITIQUE : Seuil d'usure de garniture atteint sur ${rtgId}.`, 'warn');
     
-    // VERIFICATION DU VERROU D'ALERTE MUTUELLE
+    // VÉRIFICATION DU VERROU ANTI-SPAM
     if (!hasNotificationBeenSent) {
       triggerWhatsAppNotifications();
       hasNotificationBeenSent = true; // On verrouille immédiatement après le premier envoi
-      console.log("[Sécurité] Alerte réseau envoyée. Verrouillage du canal pour éviter le spam.");
+      console.log("[Sécurité] Alerte réseau envoyée. Verrouillage du canal.");
     } else {
-      console.log("[Sécurité] Système en alerte continue. WhatsApp ignoré (déjà notifié).");
+      console.log("[Sécurité] Alerte continue. WhatsApp ignoré (déjà notifié).");
     }
   }
 }
 
-// ALGORITHME DE ROUTAGE DIRECT ASYNCHRONE ET PARALLÈLE (SECURISATION DES DEPLOIEMENTS HTTPS)
+// ALGORITHME ASYNCHRONE DE ROUTAGE PARALLÈLE FLASH (SANS BLOCAGE CORS)
 function triggerWhatsAppNotifications() {
   let storedContacts = localStorage.getItem('rtg_wa_contacts');
   let contacts = [];
@@ -318,10 +317,9 @@ function triggerWhatsAppNotifications() {
     contacts = JSON.parse(storedContacts);
   }
 
-  // Backup Secours : Ton numéro par défaut si la liste locale du navigateur est vide
   if (contacts.length === 0) {
     contacts.push({
-      name: "Ingénieur Principal (Orian)",
+      name: "Ingénieur Principal (Moi)",
       phone: "22940928851",
       key: "2875382"
     });
@@ -330,32 +328,28 @@ function triggerWhatsAppNotifications() {
   const rtgId = document.getElementById('disp-rtg-id').textContent;
   const rtgDesc = document.getElementById('disp-rtg-desc').textContent;
 
-  // Format épuré conforme HTTPS pour un transit réseau instantané
-  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention requise.\n\nOuvrir la supervision : https://anagonouorian974-spec.github.io/supervision-rtg/`;
+  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention immediate requise.\n\nOuvrir la supervision : https://anagonouorian974-spec.github.io/supervision-rtg/`;
 
-  console.log(`[Routage] Initialisation de l'envoi simultané direct pour ${contacts.length} récepteur(s)...`);
+  console.log(`[Routage] Initialisation de l'envoi simultané pour ${contacts.length} récepteur(s)...`);
 
-  // Lancement parallélisé de toutes les requêtes d'alerte en ligne droite (Zéro intermédiaire)
   const envoiPromesses = contacts.map(contact => {
     if (!contact.key || !contact.phone) return Promise.resolve();
 
     const cleanPhone = contact.phone.replace('+', '').replace(/\s/g, '');
-    
-    // API CallMeBot sécurisée en ligne droite
     const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodeURIComponent(message)}&apikey=${contact.key}`;
 
-    // Le mode 'no-cors' force le navigateur à envoyer le paquet réseau en arrière-plan sans blocage de politique de sécurité
+    // Mode no-cors direct sans proxy intermédiaire
     return fetch(targetUrl, { mode: 'no-cors' })
       .then(() => {
         pushLog(`⚡ [Routage Flash] Alerte transmise à ${contact.name} (${cleanPhone})`, 'ok');
       })
       .catch(err => {
-        pushLog(`⚠ Erreur locale pour ${contact.name} : ${err.message}`, 'warn');
+        pushLog(`⚠ Erreur réseau pour ${contact.name} : ${err.message}`, 'warn');
       });
   });
 
   Promise.all(envoiPromesses).then(() => {
-    console.log("[Routage] Toutes les requêtes d'alerte réseau ont été distribuées.");
+    console.log("[Routage] Toutes les alertes ont été injectées sur les réseaux.");
   });
 }
 
