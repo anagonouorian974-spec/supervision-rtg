@@ -68,6 +68,39 @@
   
   .btn-danger-clear { background: transparent; border: none; color: var(--text-dim); text-decoration: underline; font-family: var(--mono); font-size: 12px; cursor: pointer; margin-top: 10px; float: right;}
   .btn-danger-clear:hover { color: var(--red-alarm); }
+  /* CODE CORRECTIF POUR RENDRE LA CONFIGURATION RESPONSIVE */
+  @media (max-width: 992px) {
+    main {
+      grid-template-columns: 1fr; /* Aligne le formulaire et la liste des contacts l'un en dessous de l'autre */
+      padding: 0 10px;
+      margin: 12px auto;
+    }
+    header {
+      height: auto;
+      padding: 15px;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+    }
+    .header-right {
+      width: 100%;
+      justify-content: center;
+    }
+    .config-grid {
+      grid-template-columns: 1fr; /* Aligne les champs de saisie verticalement sur smartphone */
+    }
+    .form-group button {
+      width: 100%; /* Rend les boutons d'action plus faciles à cliquer sur mobile */
+    }
+    .contact-item {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .contact-item button {
+      align-self: flex-end;
+    }
+  }
 </style>
 </head>
 <body>
