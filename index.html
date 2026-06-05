@@ -112,32 +112,6 @@
       max-height: 350px; /* Réduit un peu la taille du registre sur mobile */
     }
   }
-/* CODE CORRECTIF POUR LA RESPONSIVITÉ SMARTPHONE & TABLETTE */
-  @media (max-width: 992px) {
-    main {
-      grid-template-columns: 1fr; /* Bascule les colonnes l'une en dessous de l'autre */
-      padding: 0 10px;
-      margin: 12px auto;
-    }
-    .dashboard-grid {
-      grid-template-columns: 1fr; /* Aligne le moniteur et le schéma SVG verticalement */
-    }
-    header {
-      height: auto;
-      padding: 15px;
-      flex-direction: column;
-      gap: 10px;
-      text-align: center;
-    }
-    .header-right {
-      width: 100%;
-      justify-content: space-between;
-    }
-    .event-stream {
-      max-height: 350px; /* Réduit un peu la taille du registre sur mobile */
-    }
-  }
-  
 </style>
 </head>
 <body>
