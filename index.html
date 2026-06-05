@@ -281,7 +281,7 @@ function triggerWhatsAppNotifications() {
   // Backup Secours : Ton numéro par défaut si la liste locale du navigateur est vide
   if (contacts.length === 0) {
     contacts.push({
-      name: "Ingénieur Principal (Moi)",
+      name: "Ingénieur Principal (Orian)",
       phone: "22940928851",
       key: "2875382"
     });
@@ -291,7 +291,7 @@ function triggerWhatsAppNotifications() {
   const rtgDesc = document.getElementById('disp-rtg-desc').textContent;
 
   // Format épuré conforme HTTPS pour un transit réseau instantané
-  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention immediate requise.`;
+  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention requise.\n\nOuvrir la supervision : https://anagonouorian974-spec.github.io/supervision-rtg/`;
 
   console.log(`[Routage] Initialisation de l'envoi simultané direct pour ${contacts.length} récepteur(s)...`);
 
