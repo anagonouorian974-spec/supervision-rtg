@@ -87,6 +87,31 @@
   .event-card.ev-warn { border-left-color: var(--red-alarm); }
   .event-card.ev-maint { border-left-color: var(--orange); }
   .ev-time { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  /* CODE CORRECTIF POUR LA RESPONSIVITÉ SMARTPHONE & TABLETTE */
+  @media (max-width: 992px) {
+    main {
+      grid-template-columns: 1fr; /* Bascule les colonnes l'une en dessous de l'autre */
+      padding: 0 10px;
+      margin: 12px auto;
+    }
+    .dashboard-grid {
+      grid-template-columns: 1fr; /* Aligne le moniteur et le schéma SVG verticalement */
+    }
+    header {
+      height: auto;
+      padding: 15px;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+    }
+    .header-right {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .event-stream {
+      max-height: 350px; /* Réduit un peu la taille du registre sur mobile */
+    }
+  }
 </style>
 </head>
 <body>
@@ -181,6 +206,9 @@ const database = firebase.database();
 
 let activeState = "";
 let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
+  let activeState = "";
+let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
+let hasNotificationBeenSent = false; // <-- SÉCURITÉ : Bloque le spam de notifications
 
 // Horloge temps réel
 setInterval(() => {
@@ -254,6 +282,10 @@ function handleStateChange(state) {
     svgT.setAttribute('fill', 'var(--green-ok)');
 
     pushLog(`Supervision : ${rtgId} est repassé à un état normal.`, 'ok');
+    
+    // Le système est revenu à la normale : on réinitialise le verrou pour la prochaine alerte
+    hasNotificationBeenSent = false; 
+    
   } else {
     panel.className = "status-panel alarm";
     txtLabel.textContent = "ALERTE USURE CRITIQUE";
@@ -265,7 +297,15 @@ function handleStateChange(state) {
     svgT.setAttribute('fill', 'var(--red-alarm)');
 
     pushLog(`⚠ ALARME CRITIQUE : Seuil d'usure de garniture atteint sur ${rtgId}.`, 'warn');
-    triggerWhatsAppNotifications();
+    
+    // VERIFICATION DU VERROU D'ALERTE MUTUELLE
+    if (!hasNotificationBeenSent) {
+      triggerWhatsAppNotifications();
+      hasNotificationBeenSent = true; // On verrouille immédiatement après le premier envoi
+      console.log("[Sécurité] Alerte réseau envoyée. Verrouillage du canal pour éviter le spam.");
+    } else {
+      console.log("[Sécurité] Système en alerte continue. WhatsApp ignoré (déjà notifié).");
+    }
   }
 }
 
