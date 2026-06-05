@@ -215,48 +215,25 @@ setInterval(() => {
 }, 1000);
 
 // Charger les informations statiques configurées depuis l'autre page
+// Charger en temps réel les informations configurées depuis Firebase Cloud
 function applyStaticConfig() {
-  document.getElementById('disp-rtg-id').textContent = localStorage.getItem('cfg_rtg_id') || "RTG-07";
-  document.getElementById('disp-rtg-desc').textContent = localStorage.getItem('cfg_rtg_desc') || "Frein de Translation — Moteur Principal";
-  
-  const rawDate = localStorage.getItem('cfg_maint_date');
-  if(rawDate) {
-    const parts = rawDate.split('-');
-    document.getElementById('disp-maint-date').textContent = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : rawDate;
-  } else {
-    document.getElementById('disp-maint-date').textContent = "Non planifiée";
-  }
-  document.getElementById('disp-maint-agent').textContent = localStorage.getItem('cfg_maint_agent') || "Non assigné";
-  document.getElementById('disp-maint-report').textContent = localStorage.getItem('cfg_maint_report') || "Aucun rapport enregistré.";
+  database.ref('/rtg_config').on('value', (snapshot) => {
+    const cfg = snapshot.val() || {};
+    
+    document.getElementById('disp-rtg-id').textContent = cfg.rtg_id || "RTG-07";
+    document.getElementById('disp-rtg-desc').textContent = cfg.rtg_desc || "Frein de Translation — Moteur Principal";
+    
+    const rawDate = cfg.maint_date;
+    if(rawDate) {
+      const parts = rawDate.split('-');
+      document.getElementById('disp-maint-date').textContent = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : rawDate;
+    } else {
+      document.getElementById('disp-maint-date').textContent = "Non planifiée";
+    }
+    document.getElementById('disp-maint-agent').textContent = cfg.maint_agent || "Non assigné";
+    document.getElementById('disp-maint-report').textContent = cfg.maint_report || "Aucun rapport enregistré.";
+  });
 }
-
-// Lecture continue de l'ESP32 via Firebase avec gestion d'erreurs réseau
-database.ref('/rtg_system').on('value', (snapshot) => {
-  const data = snapshot.val();
-  if (!data) {
-    console.warn("[Firebase] Nœud /rtg_system vide ou inaccessible.");
-    return;
-  }
-
-  const currentSignal = data.raw_signal || "HIGH";
-  const systemState = data.filtered_state || "INIT";
-
-  document.getElementById('lbl-raw-signal').textContent = currentSignal;
-  const now = new Date();
-  document.getElementById('lbl-last-time').textContent = now.toLocaleDateString() + ' ' + now.toTimeString().split(' ')[0];
-
-  // Forcer l'affichage initial dès la première réception de données
-  if (activeState === "") {
-    activeState = systemState;
-    handleStateChange(systemState === "INIT" ? "OK" : systemState);
-  } else if (systemState !== activeState && systemState !== "INIT") {
-    activeState = systemState;
-    handleStateChange(systemState);
-  }
-}, (error) => {
-  console.error("[Firebase Network Error] Link failed: ", error);
-  document.getElementById('lbl-status-text').textContent = "ÉCHEC DE LIAISON CLOUD";
-});
 
 function handleStateChange(state) {
   const isHealthy = (state === "OK");
@@ -310,12 +287,13 @@ function handleStateChange(state) {
 
 // ALGORITHME ASYNCHRONE DE ROUTAGE PARALLÈLE FLASH (SANS BLOCAGE CORS)
 function triggerWhatsAppNotifications() {
-  let storedContacts = localStorage.getItem('rtg_wa_contacts');
-  let contacts = [];
-
-  if (storedContacts) {
-    contacts = JSON.parse(storedContacts);
-  }
+  console.log("[Routage] Récupération des contacts depuis le Cloud...");
+  database.ref('/rtg_contacts').once('value').then((snapshot) => {
+    let contacts = [];
+    const data = snapshot.val();
+    if (data) {
+      contacts = Object.values(data); // Transforme l'objet Firebase en tableau de contacts
+    }
 
   if (contacts.length === 0) {
     contacts.push({
