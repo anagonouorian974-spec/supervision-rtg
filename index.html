@@ -11,22 +11,22 @@
 
 <style>
   :root {
-    --bg-deep:       #050811;
-    --bg-panel:      #0a0f1d;
-    --bg-card:       #0f192b;
-    --bg-card2:      #14223a;
-    --border:        #1b3254;
-    --border-hi:     #284e82;
-    --blue-tech:     #00b0ff;
-    --green-ok:      #00e676;
-    --red-alarm:     #ff1744;
-    --orange:        #ff9100;
-    --text-primary:  #e3f2fd;
-    --text-sec:      #789dc5;
-    --text-dim:      #436288;
-    --mono:          'Share Tech Mono', monospace;
-    --head:          'Orbitron', sans-serif;
-    --body:          'Rajdhani', sans-serif;
+    --bg-deep:        #050811;
+    --bg-panel:       #0a0f1d;
+    --bg-card:        #0f192b;
+    --bg-card2:       #14223a;
+    --border:         #1b3254;
+    --border-hi:      #284e82;
+    --blue-tech:      #00b0ff;
+    --green-ok:       #00e676;
+    --red-alarm:      #ff1744;
+    --orange:         #ff9100;
+    --text-primary:   #e3f2fd;
+    --text-sec:       #789dc5;
+    --text-dim:       #436288;
+    --mono:           'Share Tech Mono', monospace;
+    --head:           'Orbitron', sans-serif;
+    --body:           'Rajdhani', sans-serif;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -74,12 +74,21 @@
   .schema-box { display: flex; align-items: center; justify-content: center; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 6px; padding: 15px; }
   .schema-box svg { width: 100%; max-height: 220px; }
 
+  /* NOUVEAUX STYLES POUR L'ANIMATION D'USURE SVG */
+  #jaw-left, #jaw-right {
+    transition: d 0.5s ease-in-out, stroke 0.5s ease-in-out;
+  }
+  
+  /* L'état nominal est défini directement dans le SVG.
+     Voici les définitions 'd' pour l'animation via JS. */
+  
   .maint-display-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
   .info-block { background: var(--bg-card2); border: 1px solid var(--border); padding: 12px 16px; border-radius: 6px; }
   .info-lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
   .info-val { font-size: 15px; margin-top: 4px; color: var(--text-primary); font-family: var(--mono); }
 
   .right-column { display: flex; flex-direction: column; }
+  .card-history { height: 100%; display: flex; flex-direction: column; } /* Classe ajoutée pour le JS */
   .search-box { width: 100%; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; color: #fff; font-family: var(--mono); font-size: 12px; margin-bottom: 12px; }
   .event-stream { display: flex; flex-direction: column; gap: 8px; flex: 1; max-height: 520px; overflow-y: auto; }
   .event-card { background: var(--bg-card2); border: 1px solid var(--border); border-left: 4px solid var(--blue-tech); padding: 10px 12px; border-radius: 4px; font-size: 13px; }
@@ -87,6 +96,7 @@
   .event-card.ev-warn { border-left-color: var(--red-alarm); }
   .event-card.ev-maint { border-left-color: var(--orange); }
   .ev-time { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  
   /* CODE CORRECTIF POUR LA RESPONSIVITÉ SMARTPHONE & TABLETTE */
   @media (max-width: 992px) {
     main {
@@ -162,8 +172,8 @@
             <rect x="5" y="5" width="230" height="230" rx="6" fill="#070c16" stroke="#1b3254" stroke-width="1.5"/>
             <circle cx="120" cy="110" r="65" fill="#121e33" stroke="#284e82" stroke-width="2"/>
             <circle cx="120" cy="110" r="45" fill="#070c16" stroke="#1b3254"/>
-            <path id="jaw-left" d="M45 85 C45 85 38 110 45 135" stroke="#00e676" stroke-width="8" stroke-linecap="round"/>
-            <path id="jaw-right" d="M195 85 C195 85 202 110 195 135" stroke="#00e676" stroke-width="8" stroke-linecap="round"/>
+            <path id="jaw-left" d="M 52 85 C 52 85, 45 110, 52 135" stroke="#00e676" stroke-width="8" stroke-linecap="round"/>
+            <path id="jaw-right" d="M 188 85 C 188 85, 195 110, 188 135" stroke="#00e676" stroke-width="8" stroke-linecap="round"/>
             <rect x="110" y="32" width="20" height="12" rx="2" fill="#00b0ff" id="svg-sensor"/>
             <text x="120" y="198" text-anchor="middle" fill="#00e676" font-family="Orbitron" font-size="11" font-weight="700" id="svg-text">ANALYSE INITIALE</text>
           </svg>
@@ -184,7 +194,7 @@
   </div>
 
   <div class="right-column">
-    <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+    <div class="card card-history">
       <div class="card-title">Registre des Événements Réels</div>
       <input type="text" id="history-search" class="search-box" placeholder="Rechercher par date ou mot..." oninput="drawLogs()">
       <div class="event-stream" id="event-stream-container"></div>
@@ -208,6 +218,22 @@ const database = firebase.database();
 let activeState = "";
 let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
 let hasNotificationBeenSent = false; // SÉCURITÉ : Bloque le spam de notifications
+
+// Définitions des chemins SVG pour l'animation d'usure
+// Écartement initial : 136px entre les points centraux (52px vs 188px)
+const JAW_PATHS = {
+  ok: {
+    left: "M 52 85 C 52 85, 45 110, 52 135",
+    right: "M 188 85 C 188 85, 195 110, 188 135"
+  },
+  usure: {
+    // Les mâchoires se rapprochent du disque (plus vers le centre x=120)
+    // Nouvel écartement : 150px (45px vs 195px) -> d' initial sur votre code.
+    // Pour une animation "parfaite", on part du nominal définit ci-dessus (x=52) vers l'usure (x=45).
+    left: "M 45 85 C 45 85, 38 110, 45 135",
+    right: "M 195 85 C 195 85, 202 110, 195 135"
+  }
+};
 
 // Horloge temps réel
 setInterval(() => {
@@ -274,8 +300,13 @@ function handleStateChange(state) {
     panel.className = "status-panel";
     txtLabel.textContent = "GARNITURE - NORMAL";
     fieldDesc.textContent = "Champ magnétique détecté (OK)";
+    
+    // ANIMATION SVG : Retour à l'état Nominal
+    jawL.setAttribute('d', JAW_PATHS.ok.left);
+    jawR.setAttribute('d', JAW_PATHS.ok.right);
     jawL.setAttribute('stroke', 'var(--green-ok)');
     jawR.setAttribute('stroke', 'var(--green-ok)');
+    
     svgS.setAttribute('fill', 'var(--blue-tech)');
     svgT.textContent = "STATUT : NOMINAL";
     svgT.setAttribute('fill', 'var(--green-ok)');
@@ -289,8 +320,13 @@ function handleStateChange(state) {
     panel.className = "status-panel alarm";
     txtLabel.textContent = "ALERTE USURE CRITIQUE";
     fieldDesc.textContent = "Absence ou effondrement de champ (AH3503)";
+    
+    // ANIMATION SVG : Mâchoires serrées (Usure)
+    jawL.setAttribute('d', JAW_PATHS.usure.left);
+    jawR.setAttribute('d', JAW_PATHS.usure.right);
     jawL.setAttribute('stroke', 'var(--red-alarm)');
     jawR.setAttribute('stroke', 'var(--red-alarm)');
+    
     svgS.setAttribute('fill', 'var(--red-alarm)');
     svgT.textContent = "ALERTE : USURE";
     svgT.setAttribute('fill', 'var(--red-alarm)');
@@ -317,39 +353,49 @@ function triggerWhatsAppNotifications() {
     contacts = JSON.parse(storedContacts);
   }
 
+  // Contact de secours si la liste est vide
   if (contacts.length === 0) {
     contacts.push({
-      name: "Ingénieur Principal (Moi)",
-      phone: "22940928851",
-      key: "2875382"
+      name: "Ingénieur Principal (Secours)",
+      phone: "22940928851", // Numéro format international sans +
+      key: "2875382"       // Clé API CallMeBot
     });
   }
 
   const rtgId = document.getElementById('disp-rtg-id').textContent;
   const rtgDesc = document.getElementById('disp-rtg-desc').textContent;
 
-  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention immediate requise.\n\nOuvrir la supervision : https://anagonouorian974-spec.github.io/supervision-rtg/`;
+  const message = `⚠ ALERTE_SST_BRAKE: Usure critique détectée sur ${rtgId} (${rtgDesc}). Intervention immédiate requise.\n\nAccéder à la supervision live : https://anagonouorian974-spec.github.io/supervision-rtg/`;
 
   console.log(`[Routage] Initialisation de l'envoi simultané pour ${contacts.length} récepteur(s)...`);
 
   const envoiPromesses = contacts.map(contact => {
-    if (!contact.key || !contact.phone) return Promise.resolve();
+    // Sécurité de structure de donnée
+    if (!contact.key || !contact.phone) {
+      console.warn(`[Routage] Données incomplètes pour le contact: ${contact.name || 'Inconnu'}. Envoi annulé.`);
+      return Promise.resolve();
+    }
 
     const cleanPhone = contact.phone.replace('+', '').replace(/\s/g, '');
     const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodeURIComponent(message)}&apikey=${contact.key}`;
 
     // Mode no-cors direct sans proxy intermédiaire
+    // Fetch renvoie une promesse. Promise.all attendra la fin de toutes les requêtes.
     return fetch(targetUrl, { mode: 'no-cors' })
       .then(() => {
-        pushLog(`⚡ [Routage Flash] Alerte transmise à ${contact.name} (${cleanPhone})`, 'ok');
+        // En mode no-cors, on ne peut pas lire le statut de la réponse (0), mais la requête est partie.
+        pushLog(`⚡ [Routage Flash] Alerte transmise à la passerelle pour ${contact.name} (${cleanPhone})`, 'ok');
       })
       .catch(err => {
-        pushLog(`⚠ Erreur réseau pour ${contact.name} : ${err.message}`, 'warn');
+        // Capture des erreurs réseaux fatales (CORS, pas d'internet...)
+        pushLog(`⚠ Erreur réseau critique pour ${contact.name} : ${err.message}`, 'warn');
+        console.error(`[Fetch Error] détaillé pour ${contact.name}:`, err);
       });
   });
 
+  // Gestion des promesses d'envoi. On log juste la fin du processus.
   Promise.all(envoiPromesses).then(() => {
-    console.log("[Routage] Toutes les alertes ont été injectées sur les réseaux.");
+    console.log("[Routage] Processus d'envoi simultané terminé. Toutes les requêtes ont été initiées.");
   });
 }
 
@@ -364,6 +410,7 @@ function pushLog(text, type) {
 
 function drawLogs() {
   const container = document.getElementById('event-stream-container');
+  if (!container) return; // Sécurité si l'élément n'existe pas encore
   const search = document.getElementById('history-search').value.trim().toLowerCase();
   const filtered = eventLogs.filter(l => l.text.toLowerCase().includes(search) || l.timestamp.toLowerCase().includes(search));
 
@@ -373,6 +420,24 @@ function drawLogs() {
       <div class="ev-time">${l.timestamp}</div>
     </div>
   `).join('');
+}
+
+// CORRECTIONS SANS RIEN CHANGER D'AUTRE POUR L'EXÉCUTION EN ARRIÈRE-PLAN
+// L'exécution en arrière-plan (Background/Service Worker) nécessite que le site soit hébergé en HTTPS.
+// Le code ci-dessus est optimisé pour ne pas bloquer l'UI (fetch asynchrone).
+// Pour une exécution *vraiment* en arrière-plan sans onglet ouvert, il faut un Service Worker.
+// Voici le code d'enregistrement pour GitHub Pages, Netlify, etc.
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    // On enregistre le service worker situé à la racine du projet
+    navigator.serviceWorker.register('/supervision-rtg/service-worker.js', {scope: '/supervision-rtg/'})
+    .then(function(registration) {
+      console.log('✅ ServiceWorker registration successful with scope: ', registration.scope);
+    }, function(err) {
+      console.log('❌ ServiceWorker registration failed: ', err);
+    });
+  });
 }
 
 applyStaticConfig();
