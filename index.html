@@ -71,31 +71,6 @@
 
   @keyframes pulse-alarm { 0%, 100% { box-shadow: 0 0 10px rgba(255,23,68,0.2); } 50% { box-shadow: 0 0 25px rgba(255,23,68,0.5); } }
 
-  /* --- NOUVELLES ANIMATIONS SUR LE SCHÉMA SVG --- */
-  .vibrate-maint {
-    animation: mechanical-shake 0.3s infinite alternate;
-  }
-  .flash-sensor {
-    animation: industrial-flash 0.8s infinite;
-  }
-  .glitch-text {
-    animation: text-blink 1s infinite;
-  }
-
-  @keyframes mechanical-shake {
-    0% { transform: translate(1px, 1px) rotate(0deg); }
-    100% { transform: translate(-1px, -1px) rotate(0.5deg); }
-  }
-  @keyframes industrial-flash {
-    0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px var(--red-alarm)); }
-    50% { opacity: 0.3; filter: none; }
-  }
-  @keyframes text-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-  /* --------------------------------------------- */
-
   .schema-box { display: flex; align-items: center; justify-content: center; background: var(--bg-card2); border: 1px solid var(--border); border-radius: 6px; padding: 15px; }
   .schema-box svg { width: 100%; max-height: 220px; }
 
@@ -112,13 +87,30 @@
   .event-card.ev-warn { border-left-color: var(--red-alarm); }
   .event-card.ev-maint { border-left-color: var(--orange); }
   .ev-time { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-
+  /* CODE CORRECTIF POUR LA RESPONSIVITÉ SMARTPHONE & TABLETTE */
   @media (max-width: 992px) {
-    main { grid-template-columns: 1fr; padding: 0 10px; margin: 12px auto; }
-    .dashboard-grid { grid-template-columns: 1fr; }
-    header { height: auto; padding: 15px; flex-direction: column; gap: 10px; text-align: center; }
-    .header-right { width: 100%; justify-content: space-between; }
-    .event-stream { max-height: 350px; }
+    main {
+      grid-template-columns: 1fr; /* Bascule les colonnes l'une en dessous de l'autre */
+      padding: 0 10px;
+      margin: 12px auto;
+    }
+    .dashboard-grid {
+      grid-template-columns: 1fr; /* Aligne le moniteur et le schéma SVG verticalement */
+    }
+    header {
+      height: auto;
+      padding: 15px;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+    }
+    .header-right {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .event-stream {
+      max-height: 350px; /* Réduit un peu la taille du registre sur mobile */
+    }
   }
 </style>
 </head>
@@ -201,6 +193,7 @@
 </main>
 
 <script>
+// INITIALISATION DE LA CONFIGURATION CLOUD FIREBASE COMPLÈTE
 const firebaseConfig = {
   apiKey: "eUJSjyx1W95zjmkqAL8PGir4rGWQUMuxJDucYIP4",
   authDomain: "supervision-rtg-default-rtdb.firebaseapp.com",
@@ -214,11 +207,14 @@ const database = firebase.database();
 
 let activeState = "";
 let eventLogs = JSON.parse(localStorage.getItem('rtg_real_logs')) || [];
+let hasNotificationBeenSent = false; // SÉCURITÉ : Bloque le spam de notifications
 
+// Horloge temps réel
 setInterval(() => {
   document.getElementById('live-clock').textContent = new Date().toTimeString().split(' ')[0];
 }, 1000);
 
+// Charger les informations statiques configurées depuis l'autre page
 function applyStaticConfig() {
   document.getElementById('disp-rtg-id').textContent = localStorage.getItem('cfg_rtg_id') || "RTG-07";
   document.getElementById('disp-rtg-desc').textContent = localStorage.getItem('cfg_rtg_desc') || "Frein de Translation — Moteur Principal";
@@ -234,9 +230,13 @@ function applyStaticConfig() {
   document.getElementById('disp-maint-report').textContent = localStorage.getItem('cfg_maint_report') || "Aucun rapport enregistré.";
 }
 
+// Lecture continue de l'ESP32 via Firebase avec gestion d'erreurs réseau
 database.ref('/rtg_system').on('value', (snapshot) => {
   const data = snapshot.val();
-  if (!data) return;
+  if (!data) {
+    console.warn("[Firebase] Nœud /rtg_system vide ou inaccessible.");
+    return;
+  }
 
   const currentSignal = data.raw_signal || "HIGH";
   const systemState = data.filtered_state || "INIT";
@@ -245,6 +245,7 @@ database.ref('/rtg_system').on('value', (snapshot) => {
   const now = new Date();
   document.getElementById('lbl-last-time').textContent = now.toLocaleDateString() + ' ' + now.toTimeString().split(' ')[0];
 
+  // Forcer l'affichage initial dès la première réception de données
   if (activeState === "") {
     activeState = systemState;
     handleStateChange(systemState === "INIT" ? "OK" : systemState);
@@ -253,7 +254,7 @@ database.ref('/rtg_system').on('value', (snapshot) => {
     handleStateChange(systemState);
   }
 }, (error) => {
-  console.error(error);
+  console.error("[Firebase Network Error] Link failed: ", error);
   document.getElementById('lbl-status-text').textContent = "ÉCHEC DE LIAISON CLOUD";
 });
 
@@ -273,13 +274,6 @@ function handleStateChange(state) {
     panel.className = "status-panel";
     txtLabel.textContent = "GARNITURE - NORMAL";
     fieldDesc.textContent = "Champ magnétique détecté (OK)";
-    
-    // Suppression des classes d'animation
-    jawL.removeAttribute('class');
-    jawR.removeAttribute('class');
-    svgS.removeAttribute('class');
-    svgT.removeAttribute('class');
-
     jawL.setAttribute('stroke', 'var(--green-ok)');
     jawR.setAttribute('stroke', 'var(--green-ok)');
     svgS.setAttribute('fill', 'var(--blue-tech)');
@@ -288,17 +282,13 @@ function handleStateChange(state) {
 
     pushLog(`Supervision : ${rtgId} est repassé à un état normal.`, 'ok');
     
+    // Le système est revenu à la normale : on réinitialise le verrou pour la prochaine alerte
+    hasNotificationBeenSent = false; 
+    
   } else {
     panel.className = "status-panel alarm";
     txtLabel.textContent = "ALERTE USURE CRITIQUE";
-    fieldDesc.textContent = "Absence ou effondrement de champ (AH3144)";
-    
-    // --- INJECTION DES ANIMATIONS SANS COMPOSANTS VISUELS ---
-    jawL.setAttribute('class', 'vibrate-maint');
-    jawR.setAttribute('class', 'vibrate-maint');
-    svgS.setAttribute('class', 'flash-sensor');
-    svgT.setAttribute('class', 'glitch-text');
-
+    fieldDesc.textContent = "Absence ou effondrement de champ (AH3503)";
     jawL.setAttribute('stroke', 'var(--red-alarm)');
     jawR.setAttribute('stroke', 'var(--red-alarm)');
     svgS.setAttribute('fill', 'var(--red-alarm)');
@@ -307,16 +297,60 @@ function handleStateChange(state) {
 
     pushLog(`⚠ ALARME CRITIQUE : Seuil d'usure de garniture atteint sur ${rtgId}.`, 'warn');
     
-    // Appel du traceur d'historique local
-    triggerWhatsAppNotifications();
+    // VÉRIFICATION DU VERROU ANTI-SPAM
+    if (!hasNotificationBeenSent) {
+      triggerWhatsAppNotifications();
+      hasNotificationBeenSent = true; // On verrouille immédiatement après le premier envoi
+      console.log("[Sécurité] Alerte réseau envoyée. Verrouillage du canal.");
+    } else {
+      console.log("[Sécurité] Alerte continue. WhatsApp ignoré (déjà notifié).");
+    }
   }
 }
 
-// CETTE FONCTION NE DÉCLENCHE PLUS WHATSAPP DEPUIS LE NAVIGATEUR
-// ELLE S'OCCUPE UNIQUEMENT D'ÉCRIRE DANS LE REGISTRE QUE L'ESP32 S'EN CHARGE DE MANIÈRE AUTONOME
+// ALGORITHME ASYNCHRONE DE ROUTAGE PARALLÈLE FLASH (SANS BLOCAGE CORS)
 function triggerWhatsAppNotifications() {
+  let storedContacts = localStorage.getItem('rtg_wa_contacts');
+  let contacts = [];
+
+  if (storedContacts) {
+    contacts = JSON.parse(storedContacts);
+  }
+
+  if (contacts.length === 0) {
+    contacts.push({
+      name: "Ingénieur Principal (Moi)",
+      phone: "22940928851",
+      key: "2875382"
+    });
+  }
+
   const rtgId = document.getElementById('disp-rtg-id').textContent;
-  pushLog(`[Firmware-IoT] Requête Push automatique envoyée aux contacts via l'ESP32.`, 'ok');
+  const rtgDesc = document.getElementById('disp-rtg-desc').textContent;
+
+  const message = `ALERTE_RTG: Usure critique sur ${rtgId} (${rtgDesc}). Intervention immediate requise.\n\nOuvrir la supervision : https://anagonouorian974-spec.github.io/supervision-rtg/`;
+
+  console.log(`[Routage] Initialisation de l'envoi simultané pour ${contacts.length} récepteur(s)...`);
+
+  const envoiPromesses = contacts.map(contact => {
+    if (!contact.key || !contact.phone) return Promise.resolve();
+
+    const cleanPhone = contact.phone.replace('+', '').replace(/\s/g, '');
+    const targetUrl = `https://api.callmebot.com/whatsapp.php?phone=${cleanPhone}&text=${encodeURIComponent(message)}&apikey=${contact.key}`;
+
+    // Mode no-cors direct sans proxy intermédiaire
+    return fetch(targetUrl, { mode: 'no-cors' })
+      .then(() => {
+        pushLog(`⚡ [Routage Flash] Alerte transmise à ${contact.name} (${cleanPhone})`, 'ok');
+      })
+      .catch(err => {
+        pushLog(`⚠ Erreur réseau pour ${contact.name} : ${err.message}`, 'warn');
+      });
+  });
+
+  Promise.all(envoiPromesses).then(() => {
+    console.log("[Routage] Toutes les alertes ont été injectées sur les réseaux.");
+  });
 }
 
 function pushLog(text, type) {
