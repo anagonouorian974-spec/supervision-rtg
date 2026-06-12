@@ -264,9 +264,8 @@ database.ref('/rtg_system').on('value', (snapshot) => {
     return;
   }
 
-  const currentSignal = data.raw_signal || "LOW"; // Logique inversée
-// Si l'ESP32 envoie HIGH (Proche), l'état devient OK. Sinon, c'est USURE.
-const systemState = (currentSignal === "HIGH") ? "OK" : "USURE";
+  const currentSignal = data.raw_signal || "HIGH";
+  const systemState = data.filtered_state || "INIT";
 
   document.getElementById('lbl-raw-signal').textContent = currentSignal;
   const now = new Date();
@@ -300,7 +299,7 @@ function handleStateChange(state) {
   if (isHealthy) {
     panel.className = "status-panel";
     txtLabel.textContent = "GARNITURE - NORMAL";
-   fieldDesc.textContent = "Champ magnétique FORT -  (OK)";
+    fieldDesc.textContent = "Champ magnétique détecté (OK)";
     
     // ANIMATION SVG : Retour à l'état Nominal
     jawL.setAttribute('d', JAW_PATHS.ok.left);
@@ -320,7 +319,7 @@ function handleStateChange(state) {
   } else {
     panel.className = "status-panel alarm";
     txtLabel.textContent = "ALERTE USURE CRITIQUE";
-   fieldDesc.textContent = "Champ magnétique FAIBLE - Entrefer critique (AH3144)";
+    fieldDesc.textContent = "Absence ou effondrement de champ (AH3503)";
     
     // ANIMATION SVG : Mâchoires serrées (Usure)
     jawL.setAttribute('d', JAW_PATHS.usure.left);
